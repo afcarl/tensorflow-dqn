@@ -10,6 +10,9 @@ class LinearScheduler(object):
         fraction = min(float(t) / self.schedule_timesteps, 1.0)
         return self.init_epsilon + fraction * (self.min_epsilon - self.init_epsilon)
 
+    def end_value(self):
+        return self.value(self.schedule_timesteps)
+        
 if __name__ == "__main__":
     sch = LinearScheduler(1.0, 0.0, 10)
 

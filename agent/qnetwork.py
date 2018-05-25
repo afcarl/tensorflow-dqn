@@ -22,17 +22,21 @@ class QNetwork(object):
         self.init_weights()
 
     def _build_network(self):
+        """
+            Build Tensorflow Graph for training DQN
+        """
         
         # Build Network
         self.state_placeholder = tf.placeholder(dtype=tf.float32, shape=(None, self.input_size))
-        self.action_placeholder = tf.placeholder(dtype=tf.int16, shape=(None,)) 
+        self.action_placeholder = tf.placeholder(dtype=tf.int32, shape=(None,)) 
 
         # [ 4 * 100 * 2 ]
         self.hidden = tf.layers.dense(self.state_placeholder, self.hidden_size, activation=tf.nn.relu)
-        self.all_qvalues_output = tf.layers.dense(self.hidden, self.output_size) # No activation
+        self.all_qvalues_output = tf.layers.dense(self.hidden, self.output_size) # (batch_size, output_size)
 
         # Gather with action indices
-        self.qvalues_output = tf.gather(self.all_qvalues_output, self.action_placeholder)
+        mask = tf.one_hot(self.action_placeholder, depth=self.output_size)
+        self.qvalues_output = tf.boolean_mask(self.all_qvalues_output, mask)
 
         # Label placeholder
         self.qvalue_placeholder = tf.placeholder(dtype=tf.int32, shape=(None,))
@@ -41,12 +45,13 @@ class QNetwork(object):
         self.sess.run(self.init)
 
     def train_one_batch(self, batch_states, batch_actions, batch_target_qvalues):
+
         feed_dict = { self.state_placeholder: batch_states, 
                       self.action_placeholder: batch_actions, 
                       self.qvalue_placeholder: batch_target_qvalues }
         
         fetches = [self.train_op, self.loss]
-        _, batch_loss, _ = self.sess.run(fetches, feed_dict=feed_dict)
+        _, batch_loss = self.sess.run(fetches, feed_dict=feed_dict)
         return batch_loss
     
     def predict_one_batch(self, batch_states):

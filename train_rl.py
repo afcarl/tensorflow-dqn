@@ -1,55 +1,105 @@
 import time
 
 import gym
+import numpy as np
+from tqdm import tqdm
 
-from agent import DQNAgent
-from qnetwork import QNetwork
+from agent import setup_agent
 from opt import parse_opt
-from scheduler import LinearScheduler
-from replaymemory import ReplayMemory
 
-def setup_env(opt):
-    env = gym.make(opt['env'])
-    return env
-
-def setup_agent(opt, env):
-    input_size = env.observation_space.shape[0]
-    output_size = env.action_space.n
-    
-    qnetwork = QNetwork(input_size, output_size)
-    replaymemory = ReplayMemory(opt['memory_size'])
-    
-    agent = DQNAgent(qnetwork, replaymemory, opt)
-
-    return agent
-
-def run_episode(env, agent, render=False):
+def burn_in_memory(env, agent, opt):
+    # Burn in for a number of steps
     
     state = env.reset()
     done = False
-    while not done:
-        
-        if render:
+    
+    for _ in range(opt['burn_in']):
+        if opt['render']:
             env.render()
-
+        
+        # Interaction
+        agent.update_epsilon(test=True) # Use minimum epsilon
         action = agent.step(state)
         next_state, reward, done, _ = env.step(action)
+
+        agent.replaymemory.add(state, action, reward, next_state, done)    
+
+        if done:
+            state = env.reset()
+            done = False
+        else:
+            state = next_state
+
+def eval(env, agent, eval_episodes, render=False):
+    
+    rewards = []
+
+    for _ in range(eval_episodes):
         
-        # Add to replay memory
-        agent.replaymemory.add(state, action, reward, next_state, done)
+        state = env.reset()
+        done = False
+        episode_reward = 0.
+        
+        while not done:     
+            
+            if render:
+                env.render()
+            
+            agent.update_epsilon(test=True)
+            action = agent.step(state)
+            
+            state, reward, done, _ = env.step(action)
+
+            episode_reward += reward
+        
+        rewards.append(episode_reward)
+    
+    return rewards
 
 def main():
     
     opt = parse_opt()
 
-    env = setup_env(opt)
-    agent = setup_agent(opt, env)
+    env = gym.make(opt['env'])
+    agent = setup_agent(env, opt)
 
-    num_episodes = opt['num_episodes']
-    import pdb; pdb.set_trace()
-    for episode in range(1, num_episodes+1):
-        print("Episode",episode)
-        run_episode(env, agent, render=opt['render'])
+    # Burn in memory before training
+    burn_in_memory(env, agent, opt)
+
+    max_steps = opt['max_steps']
+
+    state = env.reset()
+    done = False
+
+    for step in tqdm(range(1, max_steps+1, 1)):
+            
+        if opt['render']:
+            env.render()
+
+        agent.update_epsilon(step)
+        action = agent.step(state)
+        
+        next_state, reward, done, _ = env.step(action)
+        
+        # Add to replay memory
+        agent.replaymemory.add(state, action, reward, next_state, done)
+
+        # Update network
+        agent.update_network()
+
+        if done:
+            state = env.reset()
+            done = False
+        else:
+            state = next_state
+
+        if step % opt['eval_interval'] == 0:
+            eval_rewards = eval(env, agent, opt['eval_episodes'])
+            print("step", step, "average reward", "{}(+/-{})".format(np.mean(eval_rewards), np.std(eval_rewards)))
+
+            # Reset to continue training
+            env.reset()
+
 
 if __name__ == "__main__":
     main()
