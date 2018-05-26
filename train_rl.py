@@ -94,8 +94,5 @@ def main():
         if step % opt['save_interval'] == 0:
             agent.save(opt['save_path'], global_step=step)
 
-    # Save args
-
-
 if __name__ == "__main__":
     main()

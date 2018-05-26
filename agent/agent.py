@@ -42,18 +42,22 @@ class DQNAgent(Agent):
     def setup_qnetwork(self, opt):
         # Create Session
         self.sess = tf_utils.create_session()
+        
         # Create Q Network and Target Network
-        self.qnetwork = QNetwork(opt, name='qnetwork')
-        self.target_qnetwork = QNetwork(opt, name='target_qnetwork')  
+        source_name = 'qnetwork'
+        target_name = 'target_qnetwork'
+        self.qnetwork = QNetwork(opt, name=source_name)
+        self.target_qnetwork = QNetwork(opt, name=target_name)  
+        
         # Build Copy Operation
-        self.copy_op = tf_utils.copy_variable_scope(source_name='qnetwork', target_name='target_qnetwork')
+        self.copy_op = tf_utils.copy_variable_scope(source_name, target_name)
+        
         # Initialize all variables
         tf_utils.initialize_all_variables(self.sess)    
        
     def copy_qnetwork(self):
         # Copy current Qnetwork to previous qnetwork
-        #self.qnetwork.copy_to_target()
-        pass
+        self.sess.run([self.copy_op])
 
     """ Reinforcement Learning related """
     def update_epsilon(self, current_timestep=None, test=False):
@@ -113,8 +117,8 @@ class DQNAgent(Agent):
             self.replaymemory.encode_sample(self.batch_size)
 
         # Create Network Target Value
-        #batch_target_qvalues = self.target_qnetwork.predict_one_batch(batch_next_states) #(batch_size, action_size)
-        batch_target_qvalues = self.qnetwork.predict_one_batch(self.sess, batch_next_states)
+        batch_target_qvalues = self.target_qnetwork.predict_one_batch(self.sess, batch_next_states) #(batch_size, action_size)
+        #batch_target_qvalues = self.qnetwork.predict_one_batch(self.sess, batch_next_states)
         batch_max_target_qvalues = np.max(batch_target_qvalues,axis=-1) #(batch_size) , this is the target
 
         batch_target_qvalues = batch_rewards + (1 - batch_done) * batch_max_target_qvalues 
