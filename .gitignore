@@ -1,6 +1,9 @@
 activate.sh
 *.vscode
 
+# Tensorflow model files
+exp
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
