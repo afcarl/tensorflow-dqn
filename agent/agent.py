@@ -2,7 +2,6 @@ import copy
 import random
 
 import numpy as np
-from parlai.core.agents import Agent
 import tensorflow as tf 
 
 from .qnetwork import QNetwork
@@ -12,19 +11,19 @@ from . import tf_utils as tf_utils
 
 def setup_agent(env, opt):
     # Add env parameters to opt for qnetwork creation
-    opt['input_size'] = env.observation_space.shape[0]
+    #opt['input_size'] = env.observation_space.shape[0]
+    opt['input_size'] = env.observation_space.n
     opt['output_size'] = env.action_space.n
     agent = DQNAgent(opt)
     return agent
 
-class DQNAgent(Agent):
+class DQNAgent(object):
     """
         The DQN Agent that interacts with the environment
         Does not manipulating tensorflow directly
         However, agent maintains Tensorflow session for running qnetwork
     """
-    def __init__(self, opt, shared=None):
-        super(DQNAgent, self).__init__(opt, shared)
+    def __init__(self, opt):
         
         self.setup_qnetwork(opt)
         self.replaymemory = ReplayMemory(opt['memory_size'])
